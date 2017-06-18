@@ -1,4 +1,4 @@
-# memoizing_proxy
+# memoizing proxy
 a small forward proxy to serve the http requests from local files - local data created on first request with the content retrieved from the remote url
 
 Note: once the local file is created it won't be updated as the main purpose of this proxy was to get consistent results when running the automated (xslt&xquery) tests that are accessing remote files (schemas, dtds, images, etc.)
