@@ -9,5 +9,5 @@ Note: once the local file is created it won't be updated as the main purpose of 
   - the local file name is retieved from the dictionary 
   - if there is no existing mapping a new entry is created from the tuple (uri, len(dictionary)) 
   - the updated dictionary is serialized as json and saved to disk
-* if a local file doesn't exists then a new one is created with the content is retrieved from the remote location or empty if there was an error
-* finally the GET request is served from the local file content or with error 404 if the file is empty
+* if the local file doesn't exists then a new one is created with the content retrieved from the remote location or with empty if there was a http or url exception
+* finally the GET request is served from the local file content and succes code 200 or with error 404 if the file is empty
