@@ -45,41 +45,78 @@ NAME_MAP = NameMap(abs_path('proxy.json'))
         
 class Proxy(http.server.SimpleHTTPRequestHandler):
     """the caching proxy class"""
+    def __init__(self, *args, **kwargs):
+        super(Proxy, self).__init__(*args, **kwargs)
+        self.protocol_version = 'HTTP/1.1'
 
-    def do_GET(self):
-        """handle the GET request"""
-        local_fname = NAME_MAP.as_local(self.path)
+    def setup(self):
+        print("init connection")
+        self.timeout = 3
+        http.server.SimpleHTTPRequestHandler.setup(self)
+        #self.rfile._sock.settimeout(10)
+        
+
+    def wants_file(self, local_fname):
         if not os.path.isfile(local_fname):
             #file doesn't exists, create it
             NAME_MAP.save()
-            print("caching: ", self.path, local_fname)
+            #print("caching: ", self.path, local_fname)
             try:
                 with open(local_fname, "wb") as f_cache:
                     with urllib.request.urlopen(self.path) as f_in:
                         shutil.copyfileobj(f_in, f_cache)
             except urllib.error.HTTPError as e:
-                print("http-error: ", e)
+                #print("http-error: ", e)
+                pass
             except urllib.error.URLError as  e:
-                print("url-error: ", e)
+                #print("url-error: ", e)
+                pass
             except Exception as e:
-                print("other-error: ", e)
+                #print("other-error: ", e)
+                pass
 
+    def get_or_head(self, wants_data):
+        #print(self.path)
+        local_fname = NAME_MAP.as_local(self.path)
+        self.wants_file(local_fname)
+        #self.protocol_version = 'HTTP/1.1'
         try:
-            if os.path.getsize(local_fname):
-                print("serving locally:", local_fname, self.path)
+            local_fsize = os.path.getsize(local_fname)
+            if local_fsize:
+                #print("serving locally:", local_fname, self.path)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Content-Length', '{}'.format(local_fsize))
+                self.end_headers()
                 with open(local_fname, "rb") as f_in:
-                    self.copyfile(f_in, self.wfile)
+                    #self.copyfile(f_in, self.wfile)
+                    if wants_data:
+                        self.copyfileobj(f_in, self.wfile)
+                    #self.send_response(200)
+                    #self.end_headers()
             else:
                 raise Exception("error retrieving content "+self.path)
         except Exception as e:
-            print("other-error: ", e)
-            self.send_error(404, str(e))
+            print("other-error: ", str(e))
+            self.send_error(404)
+        return
 
+    def do_GET(self):
+        """handle the GET request"""
+        self.get_or_head(True)
+
+    def do_HEAD(self):
+        #print('wants head', self.path)
+        self.get_or_head(False)
 
 if __name__ == "__main__":
-    ensure_dir(BASE_PATH)
-    NAME_MAP.load()
+    try:
+        ensure_dir(BASE_PATH)
+        NAME_MAP.load()
 
-    print("serving at port: ", PORT, " base path ", BASE_PATH)
-    httpd = socketserver.TCPServer(('', PORT), Proxy)
-    httpd.serve_forever()
+        print("serving at port: ", PORT, " base path ", BASE_PATH)
+        httpd = socketserver.TCPServer(('', PORT), Proxy)
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print('got Ctrl-C')
+        httpd.socket.close() 
